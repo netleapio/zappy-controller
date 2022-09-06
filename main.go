@@ -55,12 +55,22 @@ func mainImpl() error {
 		log.Println(hex.Dump(data))
 
 		if len(data) >= 11 {
-			id := data[0]
+			id := uint16(data[0])
 			ver := binary.BigEndian.Uint16(data[0x1:])
 			battV := binary.BigEndian.Uint16(data[0x3:])
 			temp := binary.BigEndian.Uint16(data[0x5:])
 			pressure := binary.BigEndian.Uint16(data[0x7:])
 			humidity := binary.BigEndian.Uint16(data[0x9:])
+
+			if id != 0 {
+				log.Printf("invalid data - bad id")
+				continue
+			}
+
+			if ver != 0 {
+				log.Printf("invalid data - bad ver")
+				continue
+			}
 
 			log.Printf("ID: #%d\n", id)
 			log.Printf("Ver: %d\n", ver)
@@ -68,6 +78,8 @@ func mainImpl() error {
 			log.Printf("Temp: %f C\n", float32(temp)/100)
 			log.Printf("Pressure: %f mbar\n", float32(pressure)/10)
 			log.Printf("Humidity: %f %%\n", float32(humidity)/100)
+
+			prometheusRecord(0, id, float64(temp)/100, float64(humidity)/10000, float64(pressure)*10, float64(battV)/1000)
 		}
 	}
 
@@ -78,7 +90,7 @@ func main() {
 
 	fmt.Println("loratest")
 
-	startPrometheus()
+	go startPrometheus()
 
 	if err := mainImpl(); err != nil {
 		fmt.Fprintf(os.Stderr, "loratest: %s.\n", err)
