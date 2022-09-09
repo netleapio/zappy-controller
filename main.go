@@ -18,13 +18,13 @@ func mainImpl() error {
 		return err
 	}
 
-	port, err := spireg.Open("/dev/spidev0.0")
+	port, err := spireg.Open("/dev/spidev0.1")
 	if err != nil {
 		return err
 	}
 
-	rst := gpioreg.ByName("GPIO6")
-	dio0 := gpioreg.ByName("GPIO13")
+	rst := gpioreg.ByName("GPIO22")
+	dio0 := gpioreg.ByName("GPIO25")
 
 	dev, err := sx127x.New(port, rst, dio0)
 	if err != nil {
