@@ -3,6 +3,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/netleapio/zappy-controller/sx127x"
@@ -10,6 +11,10 @@ import (
 	"periph.io/x/conn/v3/spi"
 	"periph.io/x/conn/v3/spi/spireg"
 	"periph.io/x/host/v3"
+)
+
+var (
+	errNotDetected = errors.New("not detected")
 )
 
 type radio struct {
@@ -31,19 +36,19 @@ func (r *radio) Init() error {
 	rst := gpioreg.ByName("GPIO22")
 	dio0 := gpioreg.ByName("GPIO25")
 
-	dev, err := sx127x.New(r.port, rst, dio0)
+	r.dev, err = sx127x.New(r.port, rst, dio0)
 	if err != nil {
 		return err
 	}
-	d.radio = dev
 
-	if dev.Detect() {
+	if r.dev.Detect() {
 		fmt.Println("Detected!")
 	} else {
 		fmt.Println("Not detected!")
+		return errNotDetected
 	}
 
-	err = dev.Configure(sx127x.Config{
+	err = r.dev.Configure(sx127x.Config{
 		Frequency: 868100000, // 868.1MHz
 		CRC:       sx127x.CrcModeOn,
 	})

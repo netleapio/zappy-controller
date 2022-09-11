@@ -26,7 +26,10 @@ func mainImpl() error {
 	mgr.Start()
 
 	radio := radio{}
-	radio.Init()
+	err := radio.Init()
+	if err != nil {
+		return err
+	}
 
 	pkt := protocol.Packet{}
 
