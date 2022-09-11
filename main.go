@@ -40,6 +40,9 @@ func mainImpl() error {
 			return err
 		}
 		pkt.SetLength(uint8(n))
+		if n == 0 {
+			continue
+		}
 
 		log.Println("received:")
 		log.Println(hex.Dump(pkt.AsBytes()))
