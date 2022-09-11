@@ -35,6 +35,7 @@ func (r *radio) Init() error {
 	if err != nil {
 		return err
 	}
+	d.radio = dev
 
 	if dev.Detect() {
 		fmt.Println("Detected!")
