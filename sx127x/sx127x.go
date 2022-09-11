@@ -220,6 +220,7 @@ func (d *Device) LoraTx(pkt []uint8, timeoutMs uint32) error {
 		return errPacketSize
 	}
 
+	d.setOperationMode(OP_MODE_STANDBY) // Standby required to write to FIFO
 	d.writeUint8(REG_0D_FIFO_ADDR_PTR, 0)
 	d.writeFrom(REG_00_FIFO, pkt)
 	d.writeUint8(REG_22_PAYLOAD_LENGTH, uint8(len(pkt)))

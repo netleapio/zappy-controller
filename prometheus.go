@@ -1,75 +1,105 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 
+	"github.com/netleapio/zappy-framework/protocol"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
-	labels = []string{"device_id", "network"}
-
-	tempGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: "zappy",
-		Subsystem: "sensors",
-		Name:      "temperature_celsius",
-	}, labels)
-	humidityGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: "zappy",
-		Subsystem: "sensors",
-		Name:      "humidity_ratio",
-	}, labels)
-	pressureGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: "zappy",
-		Subsystem: "sensors",
-		Name:      "pressure_pascals",
-	}, labels)
-	batteryGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: "zappy",
-		Subsystem: "sensors",
-		Name:      "battery_volts",
-	}, labels)
+	gaugeLabels = []string{"device_id", "network"}
+	gauges      = initGauges()
 )
 
-func startPrometheus() {
-	reg := prometheus.NewRegistry()
-
-	// Add Go module build info.
-	reg.MustRegister(collectors.NewBuildInfoCollector())
-	reg.MustRegister(collectors.NewGoCollector(
-		collectors.WithGoCollections(collectors.GoRuntimeMemStatsCollection | collectors.GoRuntimeMetricsCollection),
-	))
-
-	reg.MustRegister(tempGauge)
-	reg.MustRegister(humidityGauge)
-	reg.MustRegister(pressureGauge)
-	reg.MustRegister(batteryGauge)
-
-	// Expose the registered metrics via HTTP.
-	http.Handle("/metrics", promhttp.HandlerFor(
-		reg,
-		promhttp.HandlerOpts{
-			// Opt into OpenMetrics to support exemplars.
-			EnableOpenMetrics: true,
-		},
-	))
-	fmt.Println("Hello world from new Go Collector!")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+type PrometheusListener struct {
+	network      uint16
+	eventChannel chan DeviceChange
+	registry     *prometheus.Registry
+	manager      *DeviceManager
 }
 
-func prometheusRecord(network uint16, device uint16, tempCelcius, humidityRatio, pressurePascals, batteryVolts float64) {
-	networkStr := strconv.Itoa(int(network))
-	deviceStr := strconv.Itoa(int(device))
+func NewPrometheusListener() *PrometheusListener {
+	return &PrometheusListener{
+		eventChannel: make(chan DeviceChange, 10),
+	}
+}
 
-	labels := prometheus.Labels{"device_id": deviceStr, "network": networkStr}
+func (l *PrometheusListener) Init(manager *DeviceManager, network uint16) {
+	reg := prometheus.NewRegistry()
 
-	tempGauge.With(labels).Set(tempCelcius)
-	humidityGauge.With(labels).Set(humidityRatio)
-	pressureGauge.With(labels).Set(pressurePascals)
-	batteryGauge.With(labels).Set(batteryVolts)
+	for _, g := range gauges {
+		reg.MustRegister(g)
+	}
+
+	l.network = network
+	l.registry = reg
+	l.manager = manager
+}
+
+func (l *PrometheusListener) Start() {
+	// Expose the registered metrics via HTTP.
+	go func() {
+		http.Handle("/metrics", promhttp.HandlerFor(
+			l.registry,
+			promhttp.HandlerOpts{
+				// Opt into OpenMetrics to support exemplars.
+				EnableOpenMetrics: true,
+			},
+		))
+		log.Fatal(http.ListenAndServe(":8080", nil))
+	}()
+
+	go func() {
+		for {
+			change := <-l.eventChannel
+			d := l.manager.GetDevice(change.DeviceID)
+			if d == nil {
+				l.removeDevice(change.DeviceID)
+			} else {
+				l.updateSensorStats(d)
+			}
+		}
+	}()
+}
+
+func (l *PrometheusListener) updateSensorStats(d *DeviceState) {
+	labels := l.deviceLabels(d.id)
+
+	for k, v := range d.sensors {
+		md := protocol.SensorMetadata[k]
+		gauges[k].With(labels).Set(float64(v) * float64(md.Mult) / float64(md.Div))
+	}
+}
+
+func (l *PrometheusListener) removeDevice(id uint16) {
+	labels := l.deviceLabels(id)
+
+	for _, v := range gauges {
+		v.Delete(labels)
+	}
+}
+
+func (l *PrometheusListener) deviceLabels(id uint16) prometheus.Labels {
+	networkStr := strconv.Itoa(int(l.network))
+	deviceStr := strconv.Itoa(int(id))
+	return prometheus.Labels{"device_id": deviceStr, "network": networkStr}
+
+}
+
+func initGauges() map[protocol.SensorType]*prometheus.GaugeVec {
+	result := map[protocol.SensorType]*prometheus.GaugeVec{}
+
+	for t, m := range protocol.SensorMetadata {
+		result[t] = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: "zappy",
+			Subsystem: "sensors",
+			Name:      m.Name + "_" + m.Unit,
+		}, gaugeLabels)
+	}
+
+	return result
 }

@@ -1,0 +1,4 @@
+{
+    "go.buildTags": "simulated",
+    "go.testTags": "simulated"
+}

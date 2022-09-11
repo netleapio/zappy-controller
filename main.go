@@ -1,99 +1,91 @@
 package main
 
 import (
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
 
-	"github.com/kenbell/pi-loratest/sx127x"
-	"periph.io/x/conn/v3/gpio/gpioreg"
-	"periph.io/x/conn/v3/spi/spireg"
-	"periph.io/x/host/v3"
+	"github.com/netleapio/zappy-framework/protocol"
 )
 
+const (
+	NetworkID = 0
+)
+
+// buffer for protocol packets
+var pkt protocol.Packet
+
 func mainImpl() error {
-	if _, err := host.Init(); err != nil {
-		return err
-	}
+	mgr := NewDeviceManager()
+	metrics := NewPrometheusListener()
+	metrics.Init(mgr, NetworkID)
+	mgr.AddListener(metrics.eventChannel)
 
-	port, err := spireg.Open("/dev/spidev0.1")
-	if err != nil {
-		return err
-	}
+	metrics.Start()
+	mgr.Start()
 
-	rst := gpioreg.ByName("GPIO22")
-	dio0 := gpioreg.ByName("GPIO25")
+	radio := radio{}
+	radio.Init()
 
-	dev, err := sx127x.New(port, rst, dio0)
-	if err != nil {
-		return err
-	}
-
-	if dev.Detect() {
-		fmt.Println("Detected!")
-	} else {
-		fmt.Println("Not detected!")
-	}
-
-	err = dev.Configure(sx127x.Config{
-		Frequency: 868100000, // 868.1MHz
-		CRC:       sx127x.CrcModeOn,
-	})
-	if err != nil {
-		return err
-	}
+	pkt := protocol.Packet{}
 
 	for {
-		data, err := dev.LoraRx(1000 * 120)
+		pkt.SetLength(255)
+		n, err := radio.Rx(1000*120, pkt.AsBytes())
 		if err != nil {
 			return err
 		}
+		pkt.SetLength(uint8(n))
 
 		log.Println("received:")
-		log.Println(hex.Dump(data))
+		log.Println(hex.Dump(pkt.AsBytes()))
 
-		if len(data) >= 11 {
-			id := uint16(data[0])
-			ver := binary.BigEndian.Uint16(data[0x1:])
-			battV := binary.BigEndian.Uint16(data[0x3:])
-			temp := binary.BigEndian.Uint16(data[0x5:])
-			pressure := binary.BigEndian.Uint16(data[0x7:])
-			humidity := binary.BigEndian.Uint16(data[0x9:])
+		msg := protocol.DetectMessage(&pkt)
 
-			if id != 0 {
-				log.Printf("invalid data - bad id")
-				continue
+		if msg == nil {
+			log.Println("unknown packet")
+			continue
+		}
+
+		if pkt.NetworkID() != NetworkID {
+			log.Println("packet for other network, skipping")
+			continue
+		}
+
+		log.Printf("Network: #%04x\n", pkt.NetworkID())
+		log.Printf("Device: #%04x\n", pkt.DeviceID())
+		log.Printf("Version: %d\n", pkt.Version())
+		log.Printf("Alerts: %#v\n", pkt.Alerts())
+		log.Printf("Type: #%#v\n", pkt.Type())
+
+		switch msg.Packet().Type() {
+		case protocol.TypeSensorReport:
+			rpt := msg.(*protocol.SensorReport)
+			if rpt.HasBatteryVoltage() {
+				log.Printf("Batt: %.3f V\n", float32(rpt.BatteryVoltage())/1000)
 			}
-
-			if ver != 0 {
-				log.Printf("invalid data - bad ver")
-				continue
+			if rpt.HasTemperature() {
+				log.Printf("Temp: %.2f C\n", float32(rpt.Temperature())/100)
 			}
-
-			log.Printf("ID: #%d\n", id)
-			log.Printf("Ver: %d\n", ver)
-			log.Printf("Batt: %f V\n", float32(battV)/1000)
-			log.Printf("Temp: %f C\n", float32(temp)/100)
-			log.Printf("Pressure: %f mbar\n", float32(pressure)/10)
-			log.Printf("Humidity: %f %%\n", float32(humidity)/100)
-
-			prometheusRecord(0, id, float64(temp)/100, float64(humidity)/10000, float64(pressure)*10, float64(battV)/1000)
+			if rpt.HasPressure() {
+				log.Printf("Pressure: %.1f mbar\n", float32(rpt.Pressure())/10)
+			}
+			if rpt.HasHumidity() {
+				log.Printf("Humidity: %.2f %%\n", float32(rpt.Humidity())/100)
+			}
+			mgr.DeviceSensorUpdate(rpt)
 		}
 	}
 
-	return port.Close()
+	return radio.Close()
 }
 
 func main() {
-
-	fmt.Println("loratest")
-
-	go startPrometheus()
+	fmt.Println("zappy-controller")
 
 	if err := mainImpl(); err != nil {
-		fmt.Fprintf(os.Stderr, "loratest: %s.\n", err)
+		fmt.Fprintf(os.Stderr, "zappy-controller: %s.\n", err)
 		os.Exit(1)
 	}
 }
