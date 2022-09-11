@@ -161,6 +161,8 @@ github.com/netleapio/zappy-framework v0.0.0-20220910110455-8bc3af306a02 h1:QOtKy
 github.com/netleapio/zappy-framework v0.0.0-20220910110455-8bc3af306a02/go.mod h1:5yX48Wg6ykUSNmMKwyDbLoU2dskftNISOJYNpUZ/af0=
 github.com/netleapio/zappy-framework v0.0.0-20220911183650-e933e6f57b76 h1:6swD8L5NvGduzc8fDPvmxIhucmw9iEyJf6PxmQxrlYE=
 github.com/netleapio/zappy-framework v0.0.0-20220911183650-e933e6f57b76/go.mod h1:5yX48Wg6ykUSNmMKwyDbLoU2dskftNISOJYNpUZ/af0=
+github.com/netleapio/zappy-framework v0.0.0-20220911212248-a49ed136edbb h1:Z+z/pAykfhhiMbWGc6D7HZ+uFca00wn1a6E05OyipdA=
+github.com/netleapio/zappy-framework v0.0.0-20220911212248-a49ed136edbb/go.mod h1:5yX48Wg6ykUSNmMKwyDbLoU2dskftNISOJYNpUZ/af0=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=

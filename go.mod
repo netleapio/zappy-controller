@@ -7,7 +7,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
-	github.com/netleapio/zappy-framework v0.0.0-20220911183650-e933e6f57b76 // indirect
+	github.com/netleapio/zappy-framework v0.0.0-20220911212248-a49ed136edbb // indirect
 	github.com/prometheus/client_golang v1.13.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
