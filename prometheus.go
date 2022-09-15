@@ -72,7 +72,8 @@ func (l *PrometheusListener) updateSensorStats(d *DeviceState) {
 	for k, v := range d.sensors {
 		md := protocol.SensorMetadata[k]
 		if md == nil {
-			log.Printf("unable to update prometheus, unknown sensor: %v", md)
+			log.Printf("unable to update prometheus, unknown sensor: %v, %v", md, k)
+			continue
 		}
 		gauges[k].With(labels).Set(float64(v) * float64(md.Mult) / float64(md.Div))
 	}
