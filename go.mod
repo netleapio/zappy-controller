@@ -3,7 +3,7 @@ module github.com/netleapio/zappy-controller
 go 1.19
 
 require (
-	github.com/netleapio/zappy-framework v0.0.1
+	github.com/netleapio/zappy-framework v0.0.4
 	github.com/prometheus/client_golang v1.13.0
 	periph.io/x/conn/v3 v3.6.10
 	periph.io/x/host/v3 v3.7.2
