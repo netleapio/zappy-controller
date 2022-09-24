@@ -62,7 +62,7 @@ func mainImpl() error {
 		log.Printf("Network: #%04x\n", pkt.NetworkID())
 		log.Printf("Device: #%04x\n", pkt.DeviceID())
 		log.Printf("Version: %d\n", pkt.Version())
-		log.Printf("Alerts: #%04x [%s]\n", pkt.Alerts(), pkt.Alerts())
+		log.Printf("Alerts: #%04x %s\n", uint16(pkt.Alerts()), pkt.Alerts())
 		log.Printf("Type: #%#v\n", pkt.Type())
 
 		switch msg.Packet().Type() {
