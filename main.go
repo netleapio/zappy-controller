@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/netleapio/zappy-framework/protocol"
 )
 
@@ -13,20 +14,43 @@ const (
 	NetworkID = 0
 )
 
-// buffer for protocol packets
-var pkt protocol.Packet
+type status struct {
+	Temperature float32 `json:"temperature"`
+	Humidity    float32 `json:"humidity"`
+}
 
 func mainImpl() error {
+	cfg, err := LoadConfig()
+	if err != nil {
+		return fmt.Errorf("error loading config: %w", err)
+	}
+
 	mgr := NewDeviceManager()
+
 	metrics := NewPrometheusListener()
 	metrics.Init(mgr, NetworkID)
 	mgr.AddListener(metrics.eventChannel)
 
+	websocket := NewWebSocketListener()
+	websocket.Init(mgr, NetworkID)
+	mgr.AddListener(websocket.eventChannel)
+
+	mqttBroker := NewMQTTListener(&cfg.Mqtt)
+	mqttBroker.Init(mgr, NetworkID)
+	mgr.AddListener(mqttBroker.eventChannel)
+
+	mqtt.ERROR = log.New(os.Stdout, "[ERROR] ", 0)
+	mqtt.CRITICAL = log.New(os.Stdout, "[CRIT] ", 0)
+	mqtt.WARN = log.New(os.Stdout, "[WARN]  ", 0)
+	mqtt.DEBUG = log.New(os.Stdout, "[DEBUG] ", 0)
+
+	websocket.Start()
 	metrics.Start()
+	mqttBroker.Start()
 	mgr.Start()
 
 	radio := radio{}
-	err := radio.Init()
+	err = radio.Init()
 	if err != nil {
 		return err
 	}
@@ -59,10 +83,10 @@ func mainImpl() error {
 			continue
 		}
 
-		log.Printf("Network: #%04x\n", pkt.NetworkID())
-		log.Printf("Device: #%04x\n", pkt.DeviceID())
+		log.Printf("Network: 0x%04x\n", pkt.NetworkID())
+		log.Printf("Device: 0x%04x\n", pkt.DeviceID())
 		log.Printf("Version: %d\n", pkt.Version())
-		log.Printf("Alerts: #%04x %s\n", uint16(pkt.Alerts()), pkt.Alerts())
+		log.Printf("Alerts: 0x%04x %s\n", uint16(pkt.Alerts()), pkt.Alerts())
 		log.Printf("Type: #%#v\n", pkt.Type())
 
 		switch msg.Packet().Type() {
