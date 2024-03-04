@@ -7,7 +7,7 @@ require (
 	github.com/gorilla/websocket v1.5.1
 	github.com/netleapio/zappy-framework v0.1.0
 	github.com/prometheus/client_golang v1.13.0
-	go.bug.st/serial v1.6.1
+	go.bug.st/serial v1.6.2
 )
 
 require (

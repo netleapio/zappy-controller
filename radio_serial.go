@@ -12,8 +12,8 @@ type radio struct {
 	port serial.Port
 }
 
-func (r *radio) Init() error {
-	p, err := serial.Open("/dev/ttyACM0", &serial.Mode{BaudRate: 115200})
+func (r *radio) Init(port string) error {
+	p, err := serial.Open(port, &serial.Mode{BaudRate: 115200})
 	if err != nil {
 		return err
 	}

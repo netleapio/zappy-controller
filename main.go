@@ -2,12 +2,15 @@ package main
 
 import (
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/netleapio/zappy-framework/protocol"
+	"go.bug.st/serial/enumerator"
 )
 
 const (
@@ -19,7 +22,7 @@ type status struct {
 	Humidity    float32 `json:"humidity"`
 }
 
-func mainImpl() error {
+func mainImpl(port string) error {
 	cfg, err := LoadConfig()
 	if err != nil {
 		return fmt.Errorf("error loading config: %w", err)
@@ -50,9 +53,9 @@ func mainImpl() error {
 	mgr.Start()
 
 	radio := radio{}
-	err = radio.Init()
+	err = radio.Init(port)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open serial port '%s': %v", port, err)
 	}
 
 	pkt := protocol.Packet{}
@@ -112,10 +115,63 @@ func mainImpl() error {
 }
 
 func main() {
+	port := flag.String("port", "", "port to use for dongle")
+
+	flag.Parse()
+
+	cmd := "run"
+	if flag.NArg() > 0 {
+		cmd = flag.Arg(0)
+	}
+
 	fmt.Println("zappy-controller")
 
-	if err := mainImpl(); err != nil {
-		fmt.Fprintf(os.Stderr, "zappy-controller: %s.\n", err)
+	switch cmd {
+	case "run":
+		if *port == "" {
+			port = detectPort()
+		}
+
+		if err := mainImpl(*port); err != nil {
+			exitOnError(err)
+		}
+	case "scan":
+		ports, err := enumerator.GetDetailedPortsList()
+		if err != nil {
+			exitOnError(err)
+		}
+
+		for _, p := range ports {
+			if p.IsUSB {
+				fmt.Printf("%s  (VID:%s, PID:%s)\n", p.Name, p.VID, p.PID)
+			}
+		}
+	default:
+		flag.Usage()
 		os.Exit(1)
 	}
+}
+
+func exitOnError(err error) {
+	fmt.Fprintf(os.Stderr, "zappy-controller: %s.\n", err)
+	os.Exit(1)
+}
+
+func detectPort() *string {
+	ports, err := enumerator.GetDetailedPortsList()
+	if err != nil {
+		exitOnError(err)
+	}
+
+	name := ""
+	for _, p := range ports {
+		if p.IsUSB {
+			if strings.ToLower(p.VID) == "2e8a" && strings.ToLower(p.PID) == "1023" {
+				name = p.Name
+				break
+			}
+		}
+	}
+
+	return &name
 }
