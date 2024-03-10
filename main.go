@@ -57,6 +57,7 @@ func mainImpl(port string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open serial port '%s': %v", port, err)
 	}
+	defer radio.Close()
 
 	pkt := protocol.Packet{}
 
@@ -107,11 +108,18 @@ func mainImpl(port string) error {
 			if rpt.HasHumidity() {
 				log.Printf("Humidity: %.2f %%\n", float32(rpt.Humidity())/100)
 			}
+			if rpt.HasSupplyVoltage() {
+				log.Printf("Supply: %.2f V\n", float32(rpt.SupplyVoltage())/1000)
+			}
+			if rpt.HasLoadPower() {
+				log.Printf("Load Power: %.2f W\n", float32(rpt.LoadPower())/10)
+			}
+			if rpt.HasCoils() {
+				log.Printf("Coils: %X W\n", rpt.Coils())
+			}
 			mgr.DeviceSensorUpdate(rpt)
 		}
 	}
-
-	return radio.Close()
 }
 
 func main() {

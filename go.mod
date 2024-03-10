@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/eclipse/paho.mqtt.golang v1.4.3
 	github.com/gorilla/websocket v1.5.1
-	github.com/netleapio/zappy-framework v0.1.0
+	github.com/netleapio/zappy-framework v0.1.1
 	github.com/prometheus/client_golang v1.13.0
 	go.bug.st/serial v1.6.2
 )
@@ -23,4 +23,5 @@ require (
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
+	tinygo.org/x/drivers v0.22.0 // indirect
 )

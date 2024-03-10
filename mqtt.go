@@ -18,6 +18,8 @@ var hassSensorMetadata = map[protocol.SensorType]struct {
 	protocol.SensorTypeHumidity:    {deviceClass: "humidity", units: "%"},
 	protocol.SensorTypePressure:    {deviceClass: "atmospheric_pressure", units: "Pa"},
 	protocol.SensorTypeBattVolts:   {deviceClass: "voltage", units: "V"},
+	protocol.SensorTypeSupplyVolts: {deviceClass: "voltage", units: "V"},
+	protocol.SensorTypeLoadPower:   {deviceClass: "power", units: "W"},
 }
 
 type mqttDevice struct {
@@ -34,11 +36,17 @@ type MQTTListener struct {
 }
 
 func NewMQTTListener(cfg *MQTTSettings) *MQTTListener {
-	return &MQTTListener{
+	listener := &MQTTListener{
 		eventChannel: make(chan DeviceChange, 10),
 		mqtt:         hassiomqtt.NewClient(cfg.Broker, cfg.Port, cfg.ClientID, cfg.User, cfg.Password),
 		devices:      map[uint16]mqttDevice{},
 	}
+
+	if cfg.DiscoveryPrefix != "" {
+		listener.mqtt.DiscoveryPrefix = cfg.DiscoveryPrefix
+	}
+
+	return listener
 }
 
 func (l *MQTTListener) Init(manager *DeviceManager, network uint16) {
@@ -69,6 +77,11 @@ func (l *MQTTListener) Start() {
 	go func() {
 		for {
 			change := <-l.eventChannel
+
+			if !l.mqtt.Client.IsConnected() {
+				continue
+			}
+
 			d := l.manager.GetDevice(change.DeviceID)
 			if d == nil {
 				l.removeDevice(change.DeviceID)
@@ -121,7 +134,7 @@ func (l *MQTTListener) newDevice(d *DeviceState) {
 						DeviceClass:   hassMd.deviceClass,
 						Name:          md.Name,
 						ObjectID:      fmt.Sprintf("%s_%s", deviceId, hassMd.deviceClass),
-						ValueTemplate: fmt.Sprintf("{{value_json.%s}}", hassMd.deviceClass),
+						ValueTemplate: fmt.Sprintf("{{value_json.%s}}", md.Name),
 					},
 					SuggestedDisplayPrecision: 2,
 					UnitOfMeasurement:         hassMd.units,
@@ -160,14 +173,9 @@ func (l *MQTTListener) updateSensorStats(d *DeviceState) {
 			continue
 		}
 
-		hassMd, ok := hassSensorMetadata[t]
-		if !ok {
-			continue
-		}
-
 		value := (float32(v) * float32(md.Mult)) / float32(md.Div)
 
-		sb.WriteString(fmt.Sprintf("%s\"%s\":%v", prefix, hassMd.deviceClass, value))
+		sb.WriteString(fmt.Sprintf("%s\"%s\":%v", prefix, md.Name, value))
 		prefix = ","
 	}
 	sb.WriteString("}")

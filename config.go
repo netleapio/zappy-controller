@@ -6,11 +6,12 @@ import (
 )
 
 type MQTTSettings struct {
-	Broker   string `json:"broker"`
-	Port     int    `json:"port"`
-	User     string `json:"user"`
-	Password string `json:"password"`
-	ClientID string `json:"clientId"`
+	Broker          string `json:"broker"`
+	Port            int    `json:"port"`
+	User            string `json:"user"`
+	Password        string `json:"password"`
+	ClientID        string `json:"clientId"`
+	DiscoveryPrefix string `json:"discoveryPrefix"`
 }
 
 type Config struct {
