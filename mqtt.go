@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	hassiomqtt "github.com/netleapio/zappy-controller/hassio-mqtt"
 	"github.com/netleapio/zappy-framework/protocol"
@@ -55,24 +54,7 @@ func (l *MQTTListener) Init(manager *DeviceManager, network uint16) {
 }
 
 func (l *MQTTListener) Start() {
-	go func() {
-		if !l.mqtt.Client.IsConnected() {
-			tok := l.mqtt.Client.Connect()
-			for {
-				ok := tok.WaitTimeout(time.Second)
-				if !ok {
-					println("timeout connecting to MQTT broker, retrying")
-					continue
-				}
-				err := tok.Error()
-				if err != nil {
-					fmt.Printf("error connecting to MQTT broker: %v\n", err)
-					time.Sleep(time.Second)
-				}
-				break
-			}
-		}
-	}()
+	l.mqtt.Start()
 
 	go func() {
 		for {
@@ -129,16 +111,17 @@ func (l *MQTTListener) newDevice(d *DeviceState) {
 
 				sensorId := fmt.Sprintf("%s_%s", deviceId, md.Name)
 
-				s, err := hassiomqtt.NewSensor(dev.hassDevice, "sensor", sensorId, &hassiomqtt.SensorModel{
-					EntityModel: hassiomqtt.EntityModel{
-						DeviceClass:   hassMd.deviceClass,
-						Name:          md.Name,
-						ObjectID:      fmt.Sprintf("%s_%s", deviceId, hassMd.deviceClass),
-						ValueTemplate: fmt.Sprintf("{{value_json.%s}}", md.Name),
-					},
-					SuggestedDisplayPrecision: 2,
-					UnitOfMeasurement:         hassMd.units,
-				})
+				s, err := hassiomqtt.NewSensor(dev.hassDevice, "sensor", sensorId,
+					&hassiomqtt.SensorModel{
+						EntityModel: hassiomqtt.EntityModel{
+							DeviceClass:   hassMd.deviceClass,
+							Name:          md.Name,
+							ObjectID:      fmt.Sprintf("%s_%s", deviceId, hassMd.deviceClass),
+							ValueTemplate: fmt.Sprintf("{{value_json.%s}}", md.Name),
+						},
+						SuggestedDisplayPrecision: 2,
+						UnitOfMeasurement:         hassMd.units,
+					})
 				if err != nil {
 					continue
 				}
